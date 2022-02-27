@@ -3,87 +3,97 @@
 // ============================================================================
 
 // Just generic types really.
-class SymmetricKey {}
-class PrivateKey {}
-class PublicKey {}
+export class SymmetricKey {}
+export class PrivateKey {}
+export class PublicKey {}
 
-class SymmetricEncryptedData {}
+export class SymmetricEncryptedData {}
 
-declare function createSymmetricKey(): SymmetricKey
-declare function symmetricEncrypt(
+export declare function createSymmetricKey(): SymmetricKey
+export declare function symmetricEncrypt(
 	key: SymmetricKey,
 	data: any
 ): SymmetricEncryptedData
-declare function symmetricDecrypt(
+export declare function symmetricDecrypt(
 	key: SymmetricKey,
 	encrypted: SymmetricEncryptedData
 ): any
 
-class PublicPrivateKeyPair {
+export type PublicPrivateKeyPair = {
 	public: PublicKey
 	private: PrivateKey
 }
 
-class PublicEncryptedData {}
-class PrivateSignedData {}
+export class PublicEncryptedData {}
+export class PrivateSignedData {}
 
-declare function createPublicPrivateKeyPair(): PublicPrivateKeyPair
-declare function publicEncrypt(key: PublicKey, data: any): PublicEncryptedData
-declare function privateDecrypt(
+export declare function createPublicPrivateKeyPair(): PublicPrivateKeyPair
+export declare function publicEncrypt(
+	key: PublicKey,
+	data: any
+): PublicEncryptedData
+export declare function privateDecrypt(
 	key: PrivateKey,
 	encrypted: PublicEncryptedData
 ): any
-declare function privateSign(key: PrivateKey, data: any): PrivateSignedData
-declare function publicVerify(key: PublicKey, signature: PrivateSignedData): any
+export declare function privateSign(
+	key: PrivateKey,
+	data: any
+): PrivateSignedData
+export declare function publicVerify(
+	key: PublicKey,
+	signature: PrivateSignedData
+): any
 
-class Hash {}
-declare function computeHash(data: any): Hash
+export class Hash {}
+export declare function computeHash(data: any): Hash
 
 // ============================================================================
 // Higher level message abstractions
 // ============================================================================
 
-type MessagePayload = {
+export type MessagePayload = {
 	encryptedSessionKey: PublicEncryptedData
 	encryptedMessage: SymmetricEncryptedData
 }
 
-type Message = {
+export type Message = {
 	from: PublicKey
 	data: any
-	hash: Hash
 	signedHash: PrivateSignedData
 }
 
-export function encryptPublicMessage(
-	from: PublicPrivateKeyPair,
+export function signMessage(
+	me: PublicPrivateKeyPair,
 	to: PublicKey,
 	data: any
+): Message {
+	const hash = computeHash({ to, data })
+	const signedHash = privateSign(me.private, hash)
+	return { from: me.public, data, signedHash }
+}
+
+export function verifyMessage(me: PublicPrivateKeyPair, message: Message) {
+	const expectedHash = computeHash({ to: me.public, data: message.data })
+	const decrypedHash = publicVerify(message.from, message.signedHash) as Hash
+	if (expectedHash !== decrypedHash) throw new Error("Invalid signature.")
+}
+
+export function encryptPublicMessage(
+	me: PublicPrivateKeyPair,
+	to: PublicKey,
+	data: any,
+	sessionKey: SymmetricKey
 ): MessagePayload {
-	const sessionKey = createSymmetricKey()
 	const encryptedSessionKey = publicEncrypt(to, sessionKey)
-
-	const hash = computeHash(data)
-
-	const signedHash = privateSign(from.private, hash)
-
-	const message: Message = {
-		from: from.public,
-		data,
-		hash,
-		signedHash,
-	}
-
+	const message = signMessage(me, to, data)
 	const encryptedMessage = symmetricEncrypt(sessionKey, message)
-
 	return { encryptedSessionKey, encryptedMessage }
 }
 
 export function decryptPublicMessage(
 	me: PublicPrivateKeyPair,
-	from: PublicKey,
-	payload: MessagePayload,
-	contacts: Set<PublicKey>
+	payload: MessagePayload
 ) {
 	// Decrypt.
 	const sessionKey = privateDecrypt(
@@ -96,16 +106,8 @@ export function decryptPublicMessage(
 		payload.encryptedMessage
 	) as Message
 
-	// Verify known contact.
-	if (!contacts.has(message.from)) throw new Error("Unknown sender.")
-
 	// Verify signature.
-	if (message.hash !== computeHash(message.hash))
-		throw new Error("Invalid hash.")
+	verifyMessage(me, message)
 
-	const decrypedHash = publicVerify(from, message.signedHash) as Hash
-
-	if (message.hash !== decrypedHash) throw new Error("Invalid signature.")
-
-	return message.data
+	return { sessionKey, message }
 }
