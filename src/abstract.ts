@@ -1,15 +1,14 @@
 /*
 
 TODO:
-- mock out all the crypto abstractions.
-	- write crypto tests.
+
+Need to think harder about the app state and the state of the effects.
 
 - state machine for clients.
 	- Hardcoded WebRTC + Signalhub abstraction first.
 	- generalize public channel abstraction.
 	- generalize address abstration.
 	- generalize transport abstraction.
-
 
 */
 
@@ -20,6 +19,21 @@ import {
 	PublicPrivateKeyPair,
 } from "./abstractCrypto"
 import { StateMachine } from "./StateMachine"
+
+/*
+
+Brainstorming...
+
+Behaviors:
+- connect to message broker
+- initiate connection using transport
+- accpet connection using transport
+- send message
+
+- append only log sync...
+
+
+*/
 
 type Contact = { name: string; publicKey: PublicKey }
 

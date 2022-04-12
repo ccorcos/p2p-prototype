@@ -1,3 +1,7 @@
+
+wrtc package doesn't compile on apple silicon.
+https://tsh.io/blog/how-to-write-video-chat-app-using-webrtc-and-nodejs/
+
 Build a basic chat app with Electron
 	https://whimsical.com/VPLPUCwCG9cwHuCkNyTQpo
 
